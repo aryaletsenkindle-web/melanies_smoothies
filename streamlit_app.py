@@ -27,46 +27,60 @@ ingredients_list = st.multiselect(
 )
 
 if ingredients_list:
-    ingredients_string = ' '.join(ingredients_list)  # cleaner and safer
+    ingredients_string = ' '.join(ingredients_list)
 
     for fruit_chosen in ingredients_list:
         st.subheader(f"{fruit_chosen} Nutrition Information")
 
-        # 🔧 FIXED: Remove extra spaces + normalize fruit name for API
-        fruit_api_name = fruit_chosen.lower().rstrip('s')  # "Apples" → "apple"
-
-        # Handle special cases (optional but improves results)
-        special_cases = {
-            'cantaloupe': 'cantaloup',
-            'dragon fruit': 'dragonfruit',
-            'blueberries': 'blueberry',
-            'strawberries': 'strawberry',
-            'raspberries': 'raspberry',
-            'kiwi': 'kiwifruit',
+        # 🔁 MAP display name → API name
+        api_name_map = {
+            'Apples': 'apple',
+            'Blueberries': 'blueberry',
+            'Strawberries': 'strawberry',
+            'Raspberries': 'raspberry',
+            'Cantaloupe': 'cantaloup',
+            'Dragon Fruit': 'dragonfruit',
+            'Kiwi': 'kiwifruit',
+            'Elderberries': 'elderberry',   # ✅ This was missing!
+            'Guava': 'guava',               # Often works as-is
+            'Figs': 'fig',
+            'Jackfruit': 'jackfruit',
+            'Lime': 'lime',
+            'Mango': 'mango',
+            'Nectarine': 'nectarine',
+            'Orange': 'orange',
+            'Papaya': 'papaya',
+            'Quince': 'quince',
+            'Tangerine': 'tangerine',
+            'Ugli Fruit': 'ugli',           # Might not work — fallback below
+            'Vanilla Fruit': 'vanilla',     # Exotic — no data
+            'Watermelon': 'watermelon',
+            'Ximenia': 'ximenia',           # Exotic — no data
+            'Yerba Mate': 'yerba mate',     # Unlikely to work
+            'Ziziphus Jujube': 'ziziphus',  # Unlikely to work
         }
-        fruit_api_name = special_cases.get(fruit_chosen.lower(), fruit_api_name)
+
+        # Get API name, default to lowercase if not in map
+        api_name = api_name_map.get(fruit_chosen, fruit_chosen.lower())
 
         try:
-            # ✅ CORRECT URL: NO EXTRA SPACES!
-            fruityvice_response = requests.get(f"https://fruityvice.com/api/fruit/{fruit_api_name}")
-
-            if fruityvice_response.status_code == 200:
-                st.dataframe(fruityvice_response.json(), use_container_width=True)
+            response = requests.get(f"https://fruityvice.com/api/fruit/{api_name}")
+            if response.status_code == 200:
+                st.dataframe(response.json(), use_container_width=True)
             else:
-                # Friendly message for exotic fruits not in API
-                if fruit_chosen.lower() in ['vanilla fruit', 'ximenia', 'yerba mate', 'ziziphus jujube']:
-                    st.info(f"🌱 '{fruit_chosen}' is an exotic ingredient — no nutrition data available.")
+                # Fallback for exotic/unmapped fruits
+                if fruit_chosen in ['Vanilla Fruit', 'Ximenia', 'Yerba Mate', 'Ziziphus Jujube']:
+                    st.info(f"🌱 '{fruit_chosen}' is exotic — no nutrition data available.")
                 else:
-                    st.warning(f"⚠️ No data for '{fruit_chosen}'. Tried API name: '{fruit_api_name}'")
+                    st.warning(f"⚠️ No data for '{fruit_chosen}'. Tried: {api_name}")
         except Exception as e:
-            st.error(f"❌ Error fetching nutrition info: {e}")
+            st.error(f"❌ Error fetching data: {e}")
 
-    # 4. Submit Button
+    # Submit button
     if st.button('Submit Order'):
         if not name_on_order.strip():
-            st.error("Please enter a name for your smoothie!")
+            st.error("Please enter your name!")
         else:
-            # Safe insert (for lesson purposes)
             my_insert_stmt = f"""
                 INSERT INTO smoothies.public.orders (ingredients, name_on_order)
                 VALUES ('{ingredients_string}', '{name_on_order}')
