@@ -1,52 +1,60 @@
 import streamlit as st
 import requests
 import pandas as pd
+from snowflake.snowpark.context import get_active_session
 
-# Basic Header
-st.title("Customize Your Smoothie!")
+# Get Snowflake Snowpark session
+session = get_active_session()
+
+# App UI
+st.title("Customize Your Smoothie")
 st.write("Choose the fruits you want in your custom smoothie!")
 
-# Name Input
-name_on_order = st.text_input('Name on Smoothie:')
-st.write('The name on your Smoothie will be:', name_on_order)
+# User input
+name_on_order = st.text_input("Name on Smoothie:")
+if name_on_order:
+    st.write("The name on your Smoothie will be:", name_on_order)
 
-# Snowflake Connection
-cnx = st.connection("snowflake")
-session = cnx.session()
+# Fetch fruit list from Snowflake
+fruit_df = session.table("SMOOTHIES.PUBLIC.FRUIT_LIST").select("NAME")
+fruit_rows = fruit_df.collect()
 
-# Get Fruit List from Snowflake
-my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'))
+# Extract names
+fruit_list = [row["NAME"] for row in fruit_rows]
 
-# Convert to List for Multiselect
+# Multiselect widget
 ingredients_list = st.multiselect(
-    'Choose up to 5 ingredients:',
-    my_dataframe,
+    "Choose up to 5 ingredients:",
+    options=fruit_list,
     max_selections=5
 )
 
-# Processing Selections
+# Build ingredients string & call API
+ingredients_string = ""
 if ingredients_list:
-    ingredients_string = ''
-
     for fruit_chosen in ingredients_list:
-        ingredients_string += fruit_chosen + ' '
-        
-        # Header for each fruit's nutrition
-        st.subheader(fruit_chosen + ' Nutrition Information')
-        
-        # API Call to Fruityvice
-        fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + fruit_chosen)
-        
-        # Display nutrition table for each fruit
-        fv_df = st.dataframe(data=fruityvice_response.json(), use_container_width=True)
+        ingredients_string += fruit_chosen + " "
 
-    # Prepare SQL Insert Statement
-    my_insert_stmt = """ insert into smoothies.public.orders(ingredients, name_on_order)
-            values ('""" + ingredients_string + """', '""" + name_on_order + """')"""
+        st.subheader(f"{fruit_chosen} Nutrition Information")
 
-    # Submit Button
-    time_to_insert = st.button('Submit Order')
+        response = requests.get(f"https://fruityvice.com/api/fruit/{fruit_chosen.lower().strip()}")
+        if response.status_code == 200:
+            data = response.json()
+            nutrition = data.get("nutritions", {})
+            nutrition_df = pd.DataFrame([nutrition])
+            st.dataframe(nutrition_df, use_container_width=True)
+        else:
+            st.error(f"Could not retrieve data for {fruit_chosen}. Status code: {response.status_code}")
 
-    if time_to_insert:
-        session.sql(my_insert_stmt).collect()
-        st.success('Your Smoothie is ordered, ' + name_on_order + '!', icon="✅")
+# Submit order button
+if ingredients_string and name_on_order and st.button("Submit Order"):
+    try:
+        session.sql(
+            "INSERT INTO SMOOTHIES.PUBLIC.ORDERS (INGREDIENTS, NAME_ON_ORDER) VALUES (?, ?)",
+            params=[ingredients_string.strip(), name_on_order]
+        ).collect()
+
+        st.success(f"Your Smoothie is ordered, {name_on_order}!", icon="✅")
+
+    except Exception as e:
+        st.error(f"Failed to place order: {e}")
