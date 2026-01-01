@@ -29,8 +29,15 @@ ingredients = st.multiselect(
 )
 
 # Insert into ORDERS table when button is clicked
-if ingredients and st.button("Submit Order"):
-    ingredients_string = " ".join(ingredients)
+if ingredients_list:
+    ingredients_string = ""
+
+    for fruit_chosen in ingredients_list:
+        ingredients_string += fruit_chosen + " "
+
+    smoothie_root_response = requests.get("https://my.smoothieroot.com/api/fruit/watermelon")
+    st_df = st.dataframe(data=smoothie_root_response.json(), use_container_width=True)
+
 
     # Safe SQL insert using bind parameters
     session.sql(
@@ -42,6 +49,7 @@ if ingredients and st.button("Submit Order"):
 
 import requests
 smoothiefroot_response = requests.get("https://my.smoothiefroot.com/api/fruit/watermelon")
-st.text(smoothiefroot_response.json())
+# st.text(smoothiefroot_response.json())
+sf_df=st.dataframe(data=smoothiefroot_response.json(),use_container_width=True)
 
 
