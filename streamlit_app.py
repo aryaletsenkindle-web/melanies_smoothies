@@ -17,7 +17,7 @@ cnx = st.connection("snowflake")
 session = cnx.session()
 
 # 2. FIX: Fetch fruit names and convert to a list to avoid seeing numbers/IDs
-my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'))
+my_dataframe = session.table("smoothies.public.fruit_options").select('FRUIT_NAME')
 # Convert Snowpark dataframe column to a simple Python list
 fruit_list = my_dataframe.to_pandas()['FRUIT_NAME'].tolist()
 
