@@ -50,4 +50,4 @@ if ingredients_string and name_on_order and st.button("Submit Order"):
 
 import requests
 smoothiefroot_response = requests.get("https://my.smoothiefroot.com/api/fruit/watermelon")
-st.text(smoothiefroot_response)
+st_df=st.dataframe(data=smoothiefroot_response.json(), use _container_width=True)
