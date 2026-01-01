@@ -16,41 +16,48 @@ if name_on_order:
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# 2. FIX: Fetch fruit names and convert to a list to avoid seeing numbers/IDs
-my_dataframe = session.table("smoothies.public.fruit_options").select('FRUIT_NAME')
-# Convert Snowpark dataframe column to a simple Python list
+# 2. Fetch fruit names and convert to a list
+# We use .distinct() to ensure no duplicates and .tolist() for the multiselect
+my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'))
 fruit_list = my_dataframe.to_pandas()['FRUIT_NAME'].tolist()
 
 # 3. Multiselect using the list of names
 ingredients_list = st.multiselect(
     "Choose up to 5 ingredients:",
-    options=fruit_list,  # This ensures names show up, not numbers
+    options=fruit_list,  
     max_selections=5
 )
 
+# 4. Processing the selection
 if ingredients_list:
     ingredients_string = ''
 
     for fruit_chosen in ingredients_list:
+        # Build the string for the database (e.g., "Apple Banana ")
         ingredients_string += fruit_chosen + ' '
         
         # Display nutrition from API for each chosen fruit
         st.subheader(fruit_chosen + ' Nutrition Information')
         
-        # Correct URL from your course image
-        fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + fruit_chosen)
-        
-        if fruityvice_response.status_code == 200:
-            st.dataframe(data=fruityvice_response.json(), use_container_width=True)
-        else:
-            st.warning(f"No nutrition data found for {fruit_chosen}")
+        # API Call
+        try:
+            fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + fruit_chosen)
+            if fruityvice_response.status_code == 200:
+                fv_df = st.dataframe(data=fruityvice_response.json(), use_container_width=True)
+            else:
+                st.error(f"Could not find nutrition data for {fruit_chosen}.")
+        except Exception as e:
+            st.error("API connection failed.")
 
-    # 4. Submit Button
+    # 5. Submit Button
+    my_insert_stmt = """ insert into smoothies.public.orders(ingredients, name_on_order)
+                values ('""" + ingredients_string.strip() + """','""" + name_on_order + """')"""
+
     time_to_insert = st.button('Submit Order')
 
     if time_to_insert:
-        my_insert_stmt = """ insert into smoothies.public.orders(ingredients, name_on_order)
-                             values ('""" + ingredients_string.strip() + """','""" + name_on_order + """')"""
-
-        session.sql(my_insert_stmt).collect()
-        st.success(f"Your Smoothie is ordered, {name_on_order}!", icon="✅")
+        if name_on_order:
+            session.sql(my_insert_stmt).collect()
+            st.success(f"Your Smoothie is ordered, {name_on_order}!", icon="✅")
+        else:
+            st.warning("Please enter a name before submitting.")
