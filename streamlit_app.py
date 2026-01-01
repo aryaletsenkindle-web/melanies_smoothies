@@ -22,7 +22,7 @@ fruit_rows = fruit_df.collect()
 fruit_list = [row["NAME"] for row in fruit_rows]
 
 # Multiselect widget
-ingredients = st.multiselect(
+ingredients_list = st.multiselect(
     "Choose up to 5 ingredients:",
     options=fruit_list,
     max_selections=5
