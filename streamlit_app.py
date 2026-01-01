@@ -1,48 +1,38 @@
 import streamlit as st
-from datetime import datetime
+from snowflake.snowpark.functions import col
 
 st.title("Customize Your Smoothie")
 st.write("Choose the fruits you want in your custom smoothie!")
 
-# Input from user
-name_on_order = st.text_input("Name on Smoothie:").strip()
-st.write("The name on your Smoothie will be:", name_on_order)
+name_on_order = st.text_input("Name on Smoothie:")
 
-# Snowflake connection
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# Get fruit names
-fruit_df = session.sql("SELECT NAME FROM SMOOTHIES.PUBLIC.FRUIT_LIST")
-st.dataframe(fruit_df, use_container_width=True)
-
-fruit_rows = fruit_df.collect()
-fruit_list = [row["NAME"] for row in fruit_rows]
+# Use the Snowpark API for cleaner data fetching
+my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'))
 
 # Multiselect widget
-ingredients = st.multiselect(
+ingredients_list = st.multiselect(
     "Choose up to 5 ingredients:",
-    options=fruit_list,
+    my_dataframe,
     max_selections=5
 )
 
-# Insert into ORDERS table
-if ingredients and st.button("Submit Order"):
-    # 🔑 SORT ingredients to ensure stable HASH
-    ingredients_string = " ".join(sorted(ingredients))
+if ingredients_list:
+    # Most DABW labs expect a space at the end of the string
+    ingredients_string = ''
+    for fruit_chosen in ingredients_list:
+        ingredients_string += fruit_chosen + ' '
+    
+    # Remove the very last space if your specific lab version doesn't want it
+    # ingredients_string = ingredients_string.strip() 
 
-    session.sql(
-        """
-        INSERT INTO SMOOTHIES.PUBLIC.ORDERS
-        (INGREDIENTS, NAME_ON_ORDER, ORDER_TS, ORDER_FILLED)
-        VALUES (?, ?, ?, ?)
-        """,
-        params=[
-            ingredients_string,
-            name_on_order,
-            datetime.now(),
-            False
-        ]
-    ).collect()
+    my_insert_stmt = """ insert into smoothies.public.orders(ingredients, name_on_order)
+                values ('""" + ingredients_string + """', '""" + name_on_order + """')"""
 
-    st.success("Your Smoothie is ordered!", icon="✅")
+    time_to_insert = st.button('Submit Order')
+
+    if time_to_insert:
+        session.sql(my_insert_stmt).collect()
+        st.success('Your Smoothie is ordered, ' + name_on_order + '!', icon="✅")
