@@ -20,12 +20,13 @@ session = cnx.session()
 
 # 2. Fetch fruit names and convert to a list
 # We use .distinct() to ensure no duplicates and .tolist() for the multiselect
-my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'))
-fruit_list = (
-    my_dataframe.to_pandas()['FRUIT_NAME']
-    .apply(lambda x: re.sub(r'^\d+\.\s*', '', str(x)))
-    .tolist()
-)
+my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'),col('SEARCH_ON'))
+# st.dataframe(data=my_dataframe,use_container_width=True)
+# st.stop()
+
+pd_df=my_dataframe.to-pandas()
+st.dataframe(pd_df)
+st.stop()
 
 # 3. Multiselect using the list of names
 ingredients_list = st.multiselect(
@@ -41,6 +42,9 @@ if ingredients_list:
     for fruit_chosen in ingredients_list:
         # Build the string for the database (e.g., "Apple Banana ")
         ingredients_string += fruit_chosen + ' '
+
+        search_on=pd_df.loc[pd_df['FRUIT_NAME']==fruit_chosen,'SEARCH_ON'].iloc[0]
+        st.write('The search value for',fruit_chosen,'is',search_on,'.')
         
         # Display nutrition from API for each chosen fruit
         st.subheader(fruit_chosen + ' Nutrition Information')
