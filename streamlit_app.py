@@ -14,13 +14,13 @@ if name_on_order:
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# FIX: Added .to_pandas() to ensure the multiselect shows text, not numbers
+# 1. Pull the data and convert it to a Pandas Dataframe
 my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME')).to_pandas()
 
-# Multiselect using the corrected dataframe
+# 2. Update the multiselect to use the column values specifically
 ingredients_list = st.multiselect(
     "Choose up to 5 ingredients:",
-    my_dataframe,
+    my_dataframe['FRUIT_NAME'], # <--- This tells it to use the text column
     max_selections=5
 )
 
@@ -32,16 +32,13 @@ if ingredients_list:
         
         st.subheader(fruit_chosen + ' Nutrition Information')
         
-        # Using fruityvice.com to avoid your previous connection error
+        # Fruityvice API Call (Fixed URL for Lesson 10)
         fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + fruit_chosen)
         
-        # Displaying the data safely
-        if fruityvice_response.status_code == 200:
-            fv_df = st.dataframe(data=fruityvice_response.json(), use_container_width=True)
-        else:
-            st.warning(f"No nutrition data found for {fruit_chosen}")
+        # Use .json() directly
+        fv_df = st.dataframe(data=fruityvice_response.json(), use_container_width=True)
 
-    # Submit Button Logic
+    # Submit Button
     time_to_insert = st.button('Submit Order')
 
     if time_to_insert:
