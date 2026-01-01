@@ -24,17 +24,15 @@ ingredients_list = st.multiselect(
 )
 
 if ingredients_list:
-    ingredients_string = ""
-
     for fruit_chosen in ingredients_list:
         ingredients_string += fruit_chosen + " "
 
-    #st.write(ingredients_string)
-
-my_insert_stmt = f"""
-INSERT INTO smoothies.public.orders(ingredients, name_on_order)
-VALUES ('{ingredients_string}', '{name_on_order}')
-"""
+# Insert query only runs if user entered a name and selected ingredients
+if name_on_order and ingredients_string:
+    my_insert_stmt = f"""
+    INSERT INTO smoothies.public.orders(ingredients, name_on_order)
+    VALUES ('{ingredients_string.strip()}', '{name_on_order}')
+    """
 
 
 
