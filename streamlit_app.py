@@ -36,18 +36,24 @@ ingredients_list = st.multiselect(
 )
 
 # 4. Processing the selection
+# Assuming 'pd_df' is your fruit_options table converted to a pandas dataframe
 if ingredients_list:
     ingredients_string = ''
 
     for fruit_chosen in ingredients_list:
-        # Build the string for the database (e.g., "Apple Banana ")
         ingredients_string += fruit_chosen + ' '
-
-        search_on=pd_df.loc[pd_df['FRUIT_NAME']==fruit_chosen,'SEARCH_ON'].iloc[0]
-        st.write('The search value for',fruit_chosen,'is',search_on,'.')
         
-        # Display nutrition from API for each chosen fruit
+        # EXTRACTED LOGIC: Find the search value for the selected fruit
+        search_on = pd_df.loc[pd_df['FRUIT_NAME'] == fruit_chosen, 'SEARCH_ON'].iloc[0]
+        # st.write('The search value for ', fruit_chosen, ' is ', search_on, '.')
+
         st.subheader(fruit_chosen + ' Nutrition Information')
+        
+        # API request using the search_on variable
+        smoothiefroot_response = requests.get(f"https://my.smoothiefroot.com/api/fruit/{search_on}")
+        sf_df = st.dataframe(data=smoothiefroot_response.json(), use_container_width=True)
+
+    # ... remaining submit button logic ...
         
         # API Call
         try:
