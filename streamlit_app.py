@@ -21,15 +21,14 @@ ingredients_list = st.multiselect(
     max_selections=5
 )
 # If fruits selected, fetch nutrition
-ingredients_string = ""
 if ingredients_list:
     ingredients_string = ''
-
+    
     for fruit_chosen in ingredients_list:
         ingredients_string += fruit_chosen + ' '
-    smoothiefoot_response = requests.get("https://my.smoothiefoot.com/api/fruit/watermelon")
-    sf_df = st.dataframe(data=smoothiefoot_response.json(),use_container_width=True)
-
+    
+    smoothiefroot_response = requests.get("https://my.smoothiefoot.com/api/fruit/watermelon")
+    st_df = st.dataframe(data=smoothiefroot_response.json(), use_container_width=True)
 
 import requests
 smoothiefroot_response = requests.get("https://my.smoothiefroot.com/api/fruit/watermelon")
