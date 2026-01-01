@@ -1,67 +1,45 @@
+# Import required libraries
 import streamlit as st
-import pandas as pd
-import requests
 from snowflake.snowpark.functions import col
+import requests
 
-st.title("🥤 Customize Your Smoothie! 🥤")
-st.write("Choose the fruits you want in your custom smoothie!")
+# Set up the title of the app
+st.title('🥤 Customize Your Smoothie! 🥤')
+st.write('Choose the fruits you want in your custom Smoothie!')
 
-name_on_order = st.text_input("Name on Smoothie:")
-if name_on_order:
-    st.write("The name on your Smoothie will be:", name_on_order)
-
-# Snowflake Connection
-cnx = st.connection("snowflake")
+# Get the current credentials for Snowflake
 session = cnx.session()
 
-# Pull fruit names
-my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME')).to_pandas()
+# 1. Load the fruit options from the Snowflake table
+# We select both FRUIT_NAME and SEARCH_ON columns
+my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'), col('SEARCH_ON'))
 
-# Multiselect
+# 2. Convert the Snowpark Dataframe to a Pandas Dataframe 
+# This is necessary so we can use the .loc function to find specific values
+pd_df = my_dataframe.to_pandas()
+
+# 3. Create the Multiselect widget for fruit selection
 ingredients_list = st.multiselect(
-    "Choose up to 5 ingredients:",
-    my_dataframe['FRUIT_NAME'],
+    'Choose up to 5 ingredients:',
+    my_dataframe,
     max_selections=5
 )
 
+# 4. Processing the selection
 if ingredients_list:
     ingredients_string = ''
 
     for fruit_chosen in ingredients_list:
         ingredients_string += fruit_chosen + ' '
         
+        # 5. The "Match" Logic
+        # We look up the 'SEARCH_ON' value in our Pandas DF that matches the selected 'FRUIT_NAME'
+        search_on = pd_df.loc[pd_df['FRUIT_NAME'] == fruit_chosen, 'SEARCH_ON'].iloc[0]
+        
         st.subheader(fruit_chosen + ' Nutrition Information')
         
-        # API Mapping to handle plural/singular mismatches
-        api_name_map = {
-            'Apples': 'apple',
-            'Blueberries': 'blueberry',
-            'Cantaloupe': 'cantaloup',
-            'Elderberries': 'elderberry'
-        }
-        search_term = api_name_map.get(fruit_chosen, fruit_chosen.lower())
-
-        try:
-            fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + search_term)
-            if fruityvice_response.status_code == 200:
-                # Extract 'nutritions' and wrap in [] to make it a single horizontal row
-                fv_df = pd.DataFrame([fruityvice_response.json()['nutritions']])
-                st.dataframe(fv_df, use_container_width=True)
-            else:
-                st.warning(f"No nutrition data found for {fruit_chosen}")
-        except:
-            st.error("Could not connect to the API.")
-
-    # Submit Button
-    time_to_insert = st.button('Submit Order')
-
-    if time_to_insert:
-        if not name_on_order:
-            st.error("Please provide a name!")
-        else:
-            # Note: Ensure your table has the order_filled column for the final lab
-            my_insert_stmt = f"""insert into smoothies.public.orders(ingredients, name_on_order)
-                    values ('{ingredients_string.strip()}', '{name_on_order}')"""
-            
-            session.sql(my_insert_stmt).collect()
-            st.success(f'Your Smoothie is ordered, {name_on_order}!', icon="✅")
+        # 6. API call using the 'search_on' value instead of the display name
+        smoothiefroot_response = requests.get(f"https://my.smoothiefroot.com/api/fruit/{search_on}")
+        
+        # 7. Display the JSON response as a dataframe in the app
+        sf_df = st.dataframe(data=smoothiefroot_response.json(), use_container_width=True)
