@@ -1,52 +1,56 @@
 import streamlit as st
-import requests  # placed before first API use to avoid crash
-
+import requests
+import pandas as pd
 st.title("Customize Your Smoothie")
 st.write("Choose the fruits you want in your custom smoothie!")
-
 # Input from user
 name_on_order = st.text_input("Name on Smoothie:")
-st.write("The name on your Smoothie will be:", name_on_order)
-
-# Snowflake connection from Streamlit secrets
+if name_on_order:
+    st.write("The name on your Smoothie will be:", name_on_order)
+# Snowflake connection
 cnx = st.connection("snowflake")
 session = cnx.session()
-
-# Get fruit names using direct SQL (avoids describe failure)
+# Get fruit names
 fruit_df = session.sql("SELECT NAME FROM SMOOTHIES.PUBLIC.FRUIT_LIST")
-
-# Display the fruit list table
-st.dataframe(fruit_df, use_container_width=True)
-
-# Convert result to Python list for multiselect
 fruit_rows = fruit_df.collect()
 fruit_list = [row["NAME"] for row in fruit_rows]
-
-# Multiselect widget
+# Multiselect widget - assigned to 'ingredients'
 ingredients = st.multiselect(
     "Choose up to 5 ingredients:",
     options=fruit_list,
     max_selections=5
 )
+# Check if ingredients is not empty
 
-# ❗ FIXED HERE: was using undefined ingredients_list
-if ingredients:  # was: if ingredients_list
-    ingredients_string = ""
+if ingredients:
+    # Join list into a single string separated by spaces
+    ingredients_string = " ".join(ingredients)
+    # Display selection for user
+    st.write("Selected Ingredients:", ingredients_string)
+    # API Call - Note: Using 'smoothiefroot' (checked common tutorial naming)
+    # Using the last item selected to show specific fruit info
+    last_fruit = ingredients[-1]
+    st.subheader(f'Nutritional Information for {last_fruit}')
+    try:
+        # Example API endpoint (Ensure this URL is correct for your specific lesson)
+        response = requests.get(f"https://my.smoothiefroot.com/api/fruit/{last_fruit}")
+        if response.status_code == 200:
+            st.dataframe(data=response.json(), use_container_width=True)
+        else:
+            st.warning("Could not retrieve nutritional data at this time.")
+    except Exception as e:
+        st.error(f"API Error: {e}")
+    # SQL Insert
 
-    for fruit_chosen in ingredients:  # was: for fruit_chosen in ingredients_list
-        ingredients_string += fruit_chosen + " "
+    submit_submit = st.button('Submit Order')
+    if submit_submit:
 
-    smoothie_root_response = requests.get("https://my.smoothieroot.com/api/fruit/watermelon")
-    st_df = st.dataframe(data=smoothie_root_response.json(), use_container_width=True)
+        insert_query = """
 
-    # Safe SQL insert using bind parameters
-    session.sql(
-        "INSERT INTO SMOOTHIES.PUBLIC.ORDERS (INGREDIENTS, NAME_ON_ORDER) VALUES (?, ?)",
-        params=[ingredients_string, name_on_order]
-    ).collect()
+            INSERT INTO SMOOTHIES.PUBLIC.ORDERS (INGREDIENTS, NAME_ON_ORDER)
 
-    st.success("Your Smoothie is ordered!", icon="✅")
+            VALUES (?, ?)
 
-# Second API call display (same code kept)
-smoothiefroot_response = requests.get("https://my.smoothiefroot.com/api/fruit/watermelon")
-sf_df = st.dataframe(data=smoothiefroot_response.json(), use_container_width=True)
+        """
+        session.sql(insert_query, params=[ingredients_string, name_on_order]).collect()
+        st.success(f"Your Smoothie is ordered, {name_on_order}!", icon="✅")
