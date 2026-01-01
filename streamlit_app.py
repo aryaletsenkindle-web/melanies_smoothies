@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import pandas as pd
 from snowflake.snowpark.functions import col
 
 # App Title
@@ -16,41 +15,61 @@ if name_on_order:
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# 2. FIX: Fetch fruit names and convert to a list to avoid seeing numbers/IDs
+# 2. Fetch fruit names
 my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'))
-# Convert Snowpark dataframe column to a simple Python list
 fruit_list = my_dataframe.to_pandas()['FRUIT_NAME'].tolist()
 
-# 3. Multiselect using the list of names
+# 3. Multiselect
 ingredients_list = st.multiselect(
     "Choose up to 5 ingredients:",
-    options=fruit_list,  # This ensures names show up, not numbers
+    options=fruit_list,
     max_selections=5
 )
 
 if ingredients_list:
-    ingredients_string = ''
+    ingredients_string = ' '.join(ingredients_list)  # cleaner and safer
 
     for fruit_chosen in ingredients_list:
-        ingredients_string += fruit_chosen + ' '
-        
-        # Display nutrition from API for each chosen fruit
-        st.subheader(fruit_chosen + ' Nutrition Information')
-        
-        # Correct URL from your course image
-        fruityvice_response = requests.get(f"https://fruityvice.com/api/fruit/{fruit_chosen}")
-        
-        if fruityvice_response.status_code == 200:
-            st.dataframe(data=fruityvice_response.json(), use_container_width=True)
-        else:
-            st.warning(f"No nutrition data found for {fruit_chosen}")
+        st.subheader(f"{fruit_chosen} Nutrition Information")
+
+        # 🔧 FIXED: Remove extra spaces + normalize fruit name for API
+        fruit_api_name = fruit_chosen.lower().rstrip('s')  # "Apples" → "apple"
+
+        # Handle special cases (optional but improves results)
+        special_cases = {
+            'cantaloupe': 'cantaloup',
+            'dragon fruit': 'dragonfruit',
+            'blueberries': 'blueberry',
+            'strawberries': 'strawberry',
+            'raspberries': 'raspberry',
+            'kiwi': 'kiwifruit',
+        }
+        fruit_api_name = special_cases.get(fruit_chosen.lower(), fruit_api_name)
+
+        try:
+            # ✅ CORRECT URL: NO EXTRA SPACES!
+            fruityvice_response = requests.get(f"https://fruityvice.com/api/fruit/{fruit_api_name}")
+
+            if fruityvice_response.status_code == 200:
+                st.dataframe(fruityvice_response.json(), use_container_width=True)
+            else:
+                # Friendly message for exotic fruits not in API
+                if fruit_chosen.lower() in ['vanilla fruit', 'ximenia', 'yerba mate', 'ziziphus jujube']:
+                    st.info(f"🌱 '{fruit_chosen}' is an exotic ingredient — no nutrition data available.")
+                else:
+                    st.warning(f"⚠️ No data for '{fruit_chosen}'. Tried API name: '{fruit_api_name}'")
+        except Exception as e:
+            st.error(f"❌ Error fetching nutrition info: {e}")
 
     # 4. Submit Button
-    time_to_insert = st.button('Submit Order')
-
-    if time_to_insert:
-        my_insert_stmt = """ insert into smoothies.public.orders(ingredients, name_on_order)
-                             values ('""" + ingredients_string.strip() + """','""" + name_on_order + """')"""
-
-        session.sql(my_insert_stmt).collect()
-        st.success(f"Your Smoothie is ordered, {name_on_order}!", icon="✅")
+    if st.button('Submit Order'):
+        if not name_on_order.strip():
+            st.error("Please enter a name for your smoothie!")
+        else:
+            # Safe insert (for lesson purposes)
+            my_insert_stmt = f"""
+                INSERT INTO smoothies.public.orders (ingredients, name_on_order)
+                VALUES ('{ingredients_string}', '{name_on_order}')
+            """
+            session.sql(my_insert_stmt).collect()
+            st.success(f"Your Smoothie is ordered, {name_on_order}!", icon="✅")
