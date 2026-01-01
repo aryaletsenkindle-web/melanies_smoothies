@@ -36,6 +36,11 @@ if ingredients_list:
         st.subheader(fruit_chosen + ' Nutrition Information')
         fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + fruit_chosen)
         fv_df = st.dataframe(data=fruityvice_response.json(), use_container_width=True)
+
+        if fruityvice_response.status_code == 200:
+            st.dataframe(data=fruityvice_response.json(), use_container_width=True)
+        else:
+            st.error(f"Could not find data for {fruit_chosen}")
     
 
     # Submit button
