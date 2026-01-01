@@ -38,7 +38,7 @@ if ingredients_list:
         st.subheader(fruit_chosen + ' Nutrition Information')
         
         # Correct URL from your course image
-        fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + fruit_chosen)
+        fruityvice_response = requests.get(f"https://fruityvice.com/api/fruit/{fruit_chosen}")
         
         if fruityvice_response.status_code == 200:
             st.dataframe(data=fruityvice_response.json(), use_container_width=True)
