@@ -1,54 +1,55 @@
 import streamlit as st
 import requests
 import pandas as pd
+from snowflake.snowpark.functions import col
 
-st.title("Customize Your Smoothie")
+st.title(":cup_with_straw: Customize Your Smoothie :cup_with_straw:")
 st.write("Choose the fruits you want in your custom smoothie!")
 
-# Input from user
+# User Name Input
 name_on_order = st.text_input("Name on Smoothie:")
 if name_on_order:
     st.write("The name on your Smoothie will be:", name_on_order)
 
-# Snowflake connection
+# Establish Snowflake connection and session
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# Get fruit names from Snowflake
-fruit_df = session.sql("SELECT NAME FROM SMOOTHIES.PUBLIC.FRUIT_LIST")
-fruit_rows = fruit_df.collect()
+# Fetch fruit list from Snowflake
+# Note: Ensure your table name 'fruit_options' or 'fruit_list' matches your database
+my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'))
 
-# Extract fruit names safely
-fruit_list = [row["NAME"] for row in fruit_rows]
-
-# Multiselect widget
+# Ingredient selection
 ingredients_list = st.multiselect(
     "Choose up to 5 ingredients:",
-    options=fruit_list,
+    my_dataframe,
     max_selections=5
 )
 
-# If fruits selected, fetch nutrition
-ingredients_string = ""
-
 if ingredients_list:
+    ingredients_string = ''
+
     for fruit_chosen in ingredients_list:
-        ingredients_string += fruit_chosen + " "
+        ingredients_string += fruit_chosen + ' '
+        
+        # Display Nutrition Information from Fruityvice API
+        st.subheader(fruit_chosen + ' Nutrition Information')
+        fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + fruit_chosen)
+        
+        if fruityvice_response.status_code == 200:
+            st.dataframe(data=fruityvice_response.json(), use_container_width=True)
+        else:
+            st.warning(f"No nutrition data found for {fruit_chosen}")
 
-        st.subheader(f"{fruit_chosen} Nutrition Information")
+    # Submit Order Button
+    time_to_insert = st.button('Submit Order')
 
-        # Prepare API-safe name
-        fruit_api_name = fruit_chosen.lower().replace(" ", "")
+    if time_to_insert:
+        # Construct the SQL Insert Statement
+        # We use strip() to remove the trailing space from ingredients_string
+        my_insert_stmt = """ insert into smoothies.public.orders(ingredients, name_on_order)
+                             values ('""" + ingredients_string.strip() + """','""" + name_on_order + """')"""
 
-        try:
-            response = requests.get(f"https://fruityvice.com/api/fruit/{fruit_api_name}")
-            if response.status_code == 200:
-                data = response.json()
-                nutrition = data.get("nutritions", {})
-                nutrition_df = pd.DataFrame([nutrition])
-                st.dataframe(nutrition_df, use_container_width=True)
-            else:
-                st.error(f"Could not retrieve data for {fruit_chosen}. Status code: {response.status_code}")
-        except Exception as e:
-            st.error(f"Error fetching data for {fruit_chosen}: {e}")
-
+        # Execute the insert
+        session.sql(my_insert_stmt).collect()
+        st.success(f"Your Smoothie is ordered, {name_on_order}!", icon="✅")
