@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from snowflake.snowpark.functions import col
 import requests
 
 # 1. Header and Title
