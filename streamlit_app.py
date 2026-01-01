@@ -16,7 +16,7 @@ if name_on_order:
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# 2. Fetch fruit names from Snowflake
+# 2. Fetch fruit names
 my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'))
 fruit_list = my_dataframe.to_pandas()['FRUIT_NAME'].tolist()
 
@@ -28,47 +28,60 @@ ingredients_list = st.multiselect(
 )
 
 if ingredients_list:
-    # Prepare the string for the database insert
     ingredients_string = ' '.join(ingredients_list)
 
     for fruit_chosen in ingredients_list:
         st.subheader(f"{fruit_chosen} Nutrition Information")
-        
-        # Normalize name for the API (lowercase and remove trailing spaces)
-        search_term = fruit_chosen.lower().strip()
-        
-        # Specific overrides for tricky names
-        if search_term == 'apples': search_term = 'apple'
-        if search_term == 'blueberries': search_term = 'blueberry'
+
+        # 🔁 MAP display name → API name
+        # Updated 'Cantaloupe' to 'cantaloup' and 'Elderberries' to 'elderberry'
+        api_name_map = {
+            'Apples': 'apple',
+            'Blueberries': 'blueberry',
+            'Strawberries': 'strawberry',
+            'Raspberries': 'raspberry',
+            'Cantaloupe': 'cantaloup', 
+            'Dragon Fruit': 'dragonfruit',
+            'Kiwi': 'kiwifruit',
+            'Elderberries': 'elderberry',
+            'Guava': 'guava',
+            'Figs': 'fig',
+            'Jackfruit': 'jackfruit',
+            'Lime': 'lime',
+            'Mango': 'mango',
+            'Nectarine': 'nectarine',
+            'Orange': 'orange',
+            'Papaya': 'papaya',
+            'Quince': 'quince',
+            'Tangerine': 'tangerine',
+            'Ugli Fruit': 'ugli',
+            'Watermelon': 'watermelon',
+        }
+
+        # Get API name, default to lowercase if not in map
+        api_name = api_name_map.get(fruit_chosen, fruit_chosen.lower().strip())
 
         try:
-            # API Call
-            fruityvice_response = requests.get(f"https://fruityvice.com/api/fruit/{search_term}")
-            
-            if fruityvice_response.status_code == 200:
-                # Convert the JSON response to a dataframe
-                # We normalize the 'nutritions' part of the JSON for a cleaner table
-                fv_df = pd.DataFrame([fruityvice_response.json()['nutritions']])
+            response = requests.get(f"https://fruityvice.com/api/fruit/{api_name}")
+            if response.status_code == 200:
+                # Transform the 'nutritions' dictionary into a single-row DataFrame
+                # Wrapping response.json()['nutritions'] in [ ] creates a horizontal row
+                fv_df = pd.DataFrame([response.json()['nutritions']])
                 st.dataframe(fv_df, use_container_width=True)
             else:
-                st.error(f"Could not find nutrition data for {fruit_chosen}. (Tried: {search_term})")
+                st.warning(f"⚠️ No data for '{fruit_chosen}'. Tried: {api_name}")
                 
         except Exception as e:
-            st.error(f"Something went wrong connecting to the API: {e}")
+            st.error(f"❌ Error fetching data: {e}")
 
-    # 4. Submit Order Button
+    # Submit button
     if st.button('Submit Order'):
         if not name_on_order.strip():
-            st.error("Please enter a name for the order!")
+            st.error("Please enter your name!")
         else:
-            # Construct the SQL Insert Statement
             my_insert_stmt = f"""
                 INSERT INTO smoothies.public.orders (ingredients, name_on_order)
                 VALUES ('{ingredients_string}', '{name_on_order}')
             """
-            
-            try:
-                session.sql(my_insert_stmt).collect()
-                st.success(f"✅ Your Smoothie is ordered, {name_on_order}!", icon="🚀")
-            except Exception as e:
-                st.error(f"Error submitting order: {e}")
+            session.sql(my_insert_stmt).collect()
+            st.success(f"Your Smoothie is ordered, {name_on_order}!", icon="✅")
