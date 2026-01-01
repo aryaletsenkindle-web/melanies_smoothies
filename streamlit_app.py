@@ -22,17 +22,14 @@ my_dataframe = session.table("smoothies.public.fruit_options").select(
     col('FRUIT_NAME'),
     col('SEARCH_ON')
 )
-
-# Convert to Pandas DataFrame correctly
+# Convert to Pandas DataFrame
 pd_df = my_dataframe.to_pandas()
 
-# Display for debugging (optional)
-st.dataframe(pd_df, use_container_width=True)
+# Optional: Display the fruit options for debugging
+# st.dataframe(pd_df, use_container_width=True)
 
-# 3. Multiselect using fruit names
 # 3. Multiselect using fruit names
 fruit_list = pd_df['FRUIT_NAME'].tolist()
-
 ingredients_list = st.multiselect(
     "Choose up to 5 ingredients:",
     options=fruit_list,
@@ -41,24 +38,47 @@ ingredients_list = st.multiselect(
 
 # 4. Process selection
 if ingredients_list:
-    ingredients_string = ''
+    ingredients_string = ' '.join(ingredients_list) + ' '
 
+    # Display the order summary
+    if name_on_order:
+        st.write(f"{name_on_order}'s smoothie will contain: {ingredients_string}")
+
+    # Loop through each selected fruit
     for fruit_chosen in ingredients_list:
-        ingredients_string += fruit_chosen + ' '
+        st.subheader(f"{fruit_chosen} Nutrition Information")
 
-        # Extract SEARCH_ON value
-        search_on = pd_df.loc[pd_df['FRUIT_NAME'] == fruit_chosen, 'SEARCH_ON'].iloc[0]
+        # Get the SEARCH_ON value for better API matching
+        search_on_row = pd_df.loc[pd_df['FRUIT_NAME'] == fruit_chosen, 'SEARCH_ON']
+        if not search_on_row.empty:
+            search_term = search_on_row.iloc[0]
+            if pd.isna(search_term):
+                search_term = fruit_chosen
+        else:
+            search_term = fruit_chosen
 
-        st.subheader(fruit_chosen + " Nutrition Information")
+        # Normalize search term (lowercase, remove extra spaces)
+        search_term = re.sub(r'\s+', '-', search_term.strip().lower())
 
-        # API Calls (optional)
+        # Call Fruityvice API
         try:
-            fruityvice_response = requests.get(
-                "https://fruityvice.com/api/fruit/" + fruit_chosen.lower()
-            )
+            fruityvice_response = requests.get(f"https://www.fruityvice.com/api/fruit/{search_term}")
             if fruityvice_response.status_code == 200:
-                st.dataframe(fruityvice_response.json(), use_container_width=True)
+                # The response is a single dict, not a list
+                fv_data = fruityvice_response.json()
+                # Convert to DataFrame for nice display (flatten nutritions)
+                nutrition_df = pd.DataFrame({
+                    "Nutrient": ["Calories", "Fat (g)", "Sugar (g)", "Carbohydrates (g)", "Protein (g)"],
+                    "Amount (per 100g)": [
+                        fv_data["nutritions"]["calories"],
+                        fv_data["nutritions"]["fat"],
+                        fv_data["nutritions"]["sugar"],
+                        fv_data["nutritions"]["carbohydrates"],
+                        fv_data["nutritions"]["protein"]
+                    ]
+                })
+                st.dataframe(nutrition_df, use_container_width=True)
             else:
-                st.error(f"No nutrition found for {fruit_chosen}")
-        except:
-            st.error("API connection failed.")
+                st.warning(f"No nutrition data found for '{fruit_chosen}' (tried '{search_term}')")
+        except Exception as e:
+            st.error("Failed to connect to the nutrition API. Please try again later.")
