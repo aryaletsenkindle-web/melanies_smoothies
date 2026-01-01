@@ -1,4 +1,5 @@
 import streamlit as st
+import requests  # moved up only because it was used before import
 
 st.title("Customize Your Smoothie")
 st.write("Choose the fruits you want in your custom smoothie!")
@@ -22,22 +23,21 @@ fruit_rows = fruit_df.collect()
 fruit_list = [row["NAME"] for row in fruit_rows]
 
 # Multiselect widget
-ingredients_list = st.multiselect(
+ingredients = st.multiselect(
     "Choose up to 5 ingredients:",
     options=fruit_list,
     max_selections=5
 )
 
-# Insert into ORDERS table when button is clicked
-if ingredients_list:
+# FIX ONLY HERE — renamed variable in condition + loop
+if ingredients:  # was: if ingredients_list
     ingredients_string = ""
 
-    for fruit_chosen in ingredients_list:
+    for fruit_chosen in ingredients:  # was: for fruit_chosen in ingredients_list
         ingredients_string += fruit_chosen + " "
 
     smoothie_root_response = requests.get("https://my.smoothieroot.com/api/fruit/watermelon")
     st_df = st.dataframe(data=smoothie_root_response.json(), use_container_width=True)
-
 
     # Safe SQL insert using bind parameters
     session.sql(
@@ -47,9 +47,6 @@ if ingredients_list:
 
     st.success("Your Smoothie is ordered!", icon="✅")
 
-import requests
+# Second API call (unchanged except variable spelling)
 smoothiefroot_response = requests.get("https://my.smoothiefroot.com/api/fruit/watermelon")
-# st.text(smoothiefroot_response.json())
-sf_df=st.dataframe(data=smoothiefroot_response.json(),use_container_width=True)
-
-
+sf_df = st.dataframe(data=smoothiefroot_response.json(), use_container_width=True)
