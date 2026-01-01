@@ -37,25 +37,18 @@ if ingredients_list:
 
         st.subheader(f"{fruit_chosen} Nutrition Information")
 
-        # Call API safely
-        response = requests.get(f"https://fruityvice.com/api/fruit/{fruit_chosen.lower().strip()}")
+        # Prepare API-safe name
+        fruit_api_name = fruit_chosen.lower().replace(" ", "")
 
-        if response.status_code == 200:
-            data = response.json()
-            nutrition = data.get("nutritions", {})  # Extract only nutrition part
-            nutrition_df = pd.DataFrame([nutrition])  # Convert to single row table
-            st.dataframe(nutrition_df, use_container_width=True)
-        else:
-            st.error(f"Could not retrieve data for {fruit_chosen}. Status code: {response.status_code}")
+        try:
+            response = requests.get(f"https://fruityvice.com/api/fruit/{fruit_api_name}")
+            if response.status_code == 200:
+                data = response.json()
+                nutrition = data.get("nutritions", {})
+                nutrition_df = pd.DataFrame([nutrition])
+                st.dataframe(nutrition_df, use_container_width=True)
+            else:
+                st.error(f"Could not retrieve data for {fruit_chosen}. Status code: {response.status_code}")
+        except Exception as e:
+            st.error(f"Error fetching data for {fruit_chosen}: {e}")
 
-# Submit button outside loop
-if ingredients_string and name_on_order and st.button("Submit Order"):
-    insert_query = """
-        INSERT INTO SMOOTHIES.PUBLIC.ORDERS (INGREDIENTS, NAME_ON_ORDER)
-        VALUES (?, ?)
-    """
-    try:
-        session.sql(insert_query, params=[ingredients_string.strip(), name_on_order]).collect()
-        st.success(f"Your Smoothie is ordered, {name_on_order}!", icon="✅")
-    except Exception as e:
-        st.error(f"Failed to place order: {e}")
