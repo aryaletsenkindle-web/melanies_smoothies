@@ -30,6 +30,7 @@ pd_df = my_dataframe.to_pandas()
 st.dataframe(pd_df, use_container_width=True)
 
 # 3. Multiselect using fruit names
+# 3. Multiselect using fruit names
 fruit_list = pd_df['FRUIT_NAME'].tolist()
 
 ingredients_list = st.multiselect(
@@ -42,47 +43,22 @@ ingredients_list = st.multiselect(
 if ingredients_list:
     ingredients_string = ''
 
-    for fruit_chchosen in ingredients_list:
-        ingredients_string += fruit_chchosen + ' '
+    for fruit_chosen in ingredients_list:
+        ingredients_string += fruit_chosen + ' '
 
         # Extract SEARCH_ON value
-        search_on = pd_df.loc[pd_df['FRUIT_NAME'] == fruit_chchosen, 'SEARCH_ON'].iloc[0]
+        search_on = pd_df.loc[pd_df['FRUIT_NAME'] == fruit_chosen, 'SEARCH_ON'].iloc[0]
 
-        st.subheader(fruit_chchosen + " Nutrition Information")
+        st.subheader(fruit_chosen + " Nutrition Information")
 
-        # API 1 (smoothiefroot)
-        try:
-            smoothiefroot_response = requests.get(
-                f"https://my.smoothiefroot.com/api/fruit/{search_on}"
-            )
-            if smoothiefroot_response.status_code == 200:
-                st.dataframe(smoothiefroot_response.json(), use_container_width=True)
-            else:
-                st.error(f"No data found for {fruit_chchosen}")
-        except:
-            st.error("Smoothiefroot API connection failed.")
-
-        # API 2 (Fruityvice)
+        # API Calls (optional)
         try:
             fruityvice_response = requests.get(
-                "https://fruityvice.com/api/fruit/" + fruit_chchosen.lower()
+                "https://fruityvice.com/api/fruit/" + fruit_chosen.lower()
             )
             if fruityvice_response.status_code == 200:
                 st.dataframe(fruityvice_response.json(), use_container_width=True)
             else:
-                st.error(f"Could not find Fruityvice data for {fruit_chchosen}")
+                st.error(f"No nutrition found for {fruit_chosen}")
         except:
-            st.error("Fruityvice API connection failed.")
-
-    # 5. Insert Order SQL
-    my_insert_stmt = """INSERT INTO smoothies.public.orders(ingredients, name_on_order)
-        VALUES ('""" + ingredients_string.strip() + """','""" + name_on_order + """')"""
-
-    # 6. Submit Button
-    time_to_insert = st.button('Submit Order')
-    if time_to_insert:
-        if name_on_order:
-            session.sql(my_insert_stmt).collect()
-            st.success(f"Your Smoothie is ordered, {name_on_order}!", icon="✅")
-        else:
-            st.warning("Please enter a name before submitting!")
+            st.error("API connection failed.")
