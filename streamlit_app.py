@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import requests
-from snowflake.snowpark.functions import col  # <--- CRITICAL IMPORT
+from snowflake.snowpark.functions import col
 
 st.title("🥤 Customize Your Smoothie! 🥤")
 st.write("Choose the fruits you want in your custom smoothie!")
@@ -14,9 +14,10 @@ if name_on_order:
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# Get fruit names - using 'col' correctly here
-my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'))
+# FIX: Added .to_pandas() to ensure the multiselect shows text, not numbers
+my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME')).to_pandas()
 
+# Multiselect using the corrected dataframe
 ingredients_list = st.multiselect(
     "Choose up to 5 ingredients:",
     my_dataframe,
@@ -31,11 +32,14 @@ if ingredients_list:
         
         st.subheader(fruit_chosen + ' Nutrition Information')
         
-        # Fruityvice API Call
+        # Using fruityvice.com to avoid your previous connection error
         fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + fruit_chosen)
         
-        # Display the JSON data
-        fv_df = st.dataframe(data=fruityvice_response.json(), use_container_width=True)
+        # Displaying the data safely
+        if fruityvice_response.status_code == 200:
+            fv_df = st.dataframe(data=fruityvice_response.json(), use_container_width=True)
+        else:
+            st.warning(f"No nutrition data found for {fruit_chosen}")
 
     # Submit Button Logic
     time_to_insert = st.button('Submit Order')
