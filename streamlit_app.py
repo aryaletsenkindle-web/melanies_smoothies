@@ -40,7 +40,7 @@ if ingredients_list:
 
         
          st.subheader(fruit_chchosen + " Nutrition Information")
-         smoothie_fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + fruit_chchosen)
+         smoothie_fruityvice_response = requests.get(f"https://fruityvice.com/api/fruit/{search_on}")
          sf_df = st.dataframe(smoothie_fruityvice_response.json(), width="stretch")
 
 my_insert_stmt = f"""
