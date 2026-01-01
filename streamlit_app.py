@@ -1,5 +1,4 @@
 import streamlit as st
-import requests
 import pandas as pd
 st.title("Customize Your Smoothie")
 st.write("Choose the fruits you want in your custom smoothie!")
@@ -47,3 +46,8 @@ if ingredients_string and name_on_order and st.button("Submit Order"):
         st.success(f"Your Smoothie is ordered, {name_on_order}!", icon="✅")
     except Exception as e:
         st.error(f"Failed to place order: {e}")
+
+
+import requests
+smoothiefroot_response = requests.get("https://my.smoothiefroot.com/api/fruit/watermelon")
+st.text(smoothiefroot_response)
