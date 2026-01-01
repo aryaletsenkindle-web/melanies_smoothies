@@ -19,7 +19,8 @@ my_dataframe = session.table("smoothies.public.fruit_options").select(col("FRUIT
 # st.stop()
 
 
-pd_df=my_dataframe.to_pandas()
+pd_df = my_dataframe.collect()
+
 st.dataframe(pd_df)
 st.stop()
 ingredients_string = ""  # put this BEFORE the multiselect block
