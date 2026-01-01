@@ -19,32 +19,36 @@ fruit_df = session.sql("SELECT NAME FROM SMOOTHIES.PUBLIC.FRUIT_LIST")
 fruit_rows = fruit_df.collect()
 fruit_list = [row["NAME"] for row in fruit_rows]
 
-# Multiselect widget
-selected_ingredients = st.multiselect(
+# Multiselect widget — assign to 'ingredients_list' to match tutorial
+ingredients_list = st.multiselect(
     "Choose up to 5 ingredients:",
     options=fruit_list,
     max_selections=5
 )
 
 # Check if any ingredients are selected
-if selected_ingredients:
-    ingredients_string = " ".join(selected_ingredients)
-    st.write("Selected Ingredients:", ingredients_string)
-
-    # Show nutritional info for the last selected fruit
-    last_fruit = selected_ingredients[-1]
-    st.subheader(f'Nutritional Information for {last_fruit}')
+if ingredients_list:
+    ingredients_string = ''
     
-    try:
-        # Fix: remove extra spaces in URL
-        response = requests.get(f"https://www.fruityvice.com/api/fruit/{last_fruit.lower()}")
-        if response.status_code == 200:
-            fruit_data = response.json()
-            st.dataframe(data=fruit_data, use_container_width=True)
-        else:
-            st.warning(f"Could not retrieve data for '{last_fruit}'. Status code: {response.status_code}")
-    except Exception as e:
-        st.error(f"API Error: {e}")
+    # Use for loop as shown in your screenshot
+    for fruit_chosen in ingredients_list:
+        ingredients_string += fruit_chosen + ' '
+    
+    st.write("Selected Ingredients:", ingredients_string.strip())  # .strip() removes trailing space
+
+    # Show nutritional info for each selected fruit (using for loop as per tutorial)
+    for fruit_chosen in ingredients_list:
+        st.subheader(f'{fruit_chosen} Nutrition Information')
+        try:
+            # Fix: remove extra spaces in URL (important!)
+            response = requests.get(f"https://www.fruityvice.com/api/fruit/{fruit_chosen.lower()}")
+            if response.status_code == 200:
+                fruit_data = response.json()
+                st.dataframe(data=fruit_data, use_container_width=True)
+            else:
+                st.warning(f"Could not retrieve data for '{fruit_chosen}'. Status code: {response.status_code}")
+        except Exception as e:
+            st.error(f"API Error for {fruit_chosen}: {e}")
 
     # Submit button
     if st.button('Submit Order'):
@@ -52,5 +56,5 @@ if selected_ingredients:
             INSERT INTO SMOOTHIES.PUBLIC.ORDERS (INGREDIENTS, NAME_ON_ORDER)
             VALUES (?, ?)
         """
-        session.sql(insert_query, params=[ingredients_string, name_on_order]).collect()
+        session.sql(insert_query, params=[ingredients_string.strip(), name_on_order]).collect()
         st.success(f"Your Smoothie is ordered, {name_on_order}!", icon="✅")
