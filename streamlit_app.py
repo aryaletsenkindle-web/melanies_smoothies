@@ -36,18 +36,7 @@ if ingredients_list:
         st.subheader(fruit_chosen + ' Nutrition Information')
         fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + fruit_chosen)
         fv_df = st.dataframe(data=fruityvice_response.json(), use_container_width=True)
-    for fruit_chosen in ingredients_list:
-        st.subheader(f'{fruit_chosen} Nutrition Information')
-        try:
-            # Fix: remove extra spaces in URL (important!)
-            response = requests.get(f"https://www.fruityvice.com/api/fruit/{fruit_chosen.lower()}")
-            if response.status_code == 200:
-                fruit_data = response.json()
-                st.dataframe(data=fruit_data, use_container_width=True)
-            else:
-                st.warning(f"Could not retrieve data for '{fruit_chosen}'. Status code: {response.status_code}")
-        except Exception as e:
-            st.error(f"API Error for {fruit_chosen}: {e}")
+    
 
     # Submit button
     if st.button('Submit Order'):
