@@ -2,7 +2,13 @@ import streamlit as st
 import requests
 import pandas as pd
 from snowflake.snowpark.functions import col
+import re
 
+fruit_list = (
+    my_dataframe.to_pandas()['FRUIT_NAME']
+    .apply(lambda x: re.sub(r'^\d+\.\s*', '', str(x)))
+    .tolist()
+)
 # App Title
 st.title(":cup_with_straw: Customize Your Smoothie :cup_with_straw:")
 st.write("Choose the fruits you want in your custom smoothie!")
