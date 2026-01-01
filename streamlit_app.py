@@ -1,5 +1,5 @@
 import streamlit as st
-import requests  # moved up only because it was used before import
+import requests  # placed before first API use to avoid crash
 
 st.title("Customize Your Smoothie")
 st.write("Choose the fruits you want in your custom smoothie!")
@@ -29,7 +29,7 @@ ingredients = st.multiselect(
     max_selections=5
 )
 
-# FIX ONLY HERE — renamed variable in condition + loop
+# ❗ FIXED HERE: was using undefined ingredients_list
 if ingredients:  # was: if ingredients_list
     ingredients_string = ""
 
@@ -47,6 +47,6 @@ if ingredients:  # was: if ingredients_list
 
     st.success("Your Smoothie is ordered!", icon="✅")
 
-# Second API call (unchanged except variable spelling)
+# Second API call display (same code kept)
 smoothiefroot_response = requests.get("https://my.smoothiefroot.com/api/fruit/watermelon")
 sf_df = st.dataframe(data=smoothiefroot_response.json(), use_container_width=True)
